@@ -56,6 +56,11 @@ app.include_router(demographics_routes.router)
 app.include_router(mcp_routes.router)
 
 
+@app.get("/", operation_id="root", tags=["meta"])
+async def root():
+    return {"status": "ok"}
+
+
 @app.get("/health", operation_id="health", tags=["meta"])
 async def health():
     return {"status": "ok"}
