@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
+# Refreshed credentials when tokens are loaded from GOOGLE_OAUTH_TOKEN_JSON (env cannot be updated at runtime).
+_env_token_runtime_cache: Optional[Credentials] = None
+
 
 def _token_path() -> Path:
     path = settings.token_path_resolved
@@ -53,6 +56,9 @@ def get_oauth_flow(redirect_uri: Optional[str] = None) -> Flow:
 
 
 def save_credentials(creds: Credentials) -> None:
+    global _env_token_runtime_cache
+    if settings.google_oauth_token_json.strip():
+        _env_token_runtime_cache = creds
     path = _token_path()
     payload = {
         "token": creds.token,
@@ -67,6 +73,22 @@ def save_credentials(creds: Credentials) -> None:
 
 
 def load_credentials() -> Optional[Credentials]:
+    global _env_token_runtime_cache
+
+    env_raw = settings.google_oauth_token_json.strip()
+    if env_raw:
+        if _env_token_runtime_cache is not None:
+            return _env_token_runtime_cache
+        try:
+            data = json.loads(env_raw)
+        except json.JSONDecodeError as e:
+            logger.warning("Invalid GOOGLE_OAUTH_TOKEN_JSON: %s", e)
+            return None
+        if not isinstance(data, dict):
+            logger.warning("GOOGLE_OAUTH_TOKEN_JSON must be a JSON object")
+            return None
+        return _credentials_from_dict(data)
+
     path = settings.token_path_resolved
     if not path.is_file():
         return None
@@ -82,7 +104,8 @@ def get_credentials() -> Credentials:
     creds = load_credentials()
     if creds is None:
         raise FileNotFoundError(
-            "No OAuth token found. Complete the browser flow at GET /auth/google first."
+            "No OAuth token found. Set GOOGLE_OAUTH_TOKEN_JSON or complete "
+            "the browser flow at GET /auth/google first."
         )
     if not creds.valid:
         if creds.expired and creds.refresh_token:

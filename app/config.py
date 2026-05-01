@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     google_client_id: str = ""
     google_client_secret: str = ""
+    # Full OAuth token JSON (same shape as token file). Preferred on Railway / Foundry.
+    google_oauth_token_json: str = ""
     oauth_redirect_uri: str = "http://127.0.0.1:8000/auth/google/callback"
     token_storage_path: Path = Path(".tokens/oauth_token.json")
     log_level: str = "INFO"
